@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dola Seedance 2 — Multi-Account Batch</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <div class="logo">DS</div>
+        <div>
+          <h1>Dola Seedance 2 Batch</h1>
+          <p>LIVE production · Multi-account · Gmail auto-login · Internal API · Hàng loạt</p>
+        </div>
+      </div>
+      <div class="badges">
+        <span class="badge" id="badge-worker">worker: …</span>
+        <span class="badge" id="badge-demo">mode: …</span>
+        <span class="badge" id="badge-accounts">accounts: 0</span>
+      </div>
+    </header>
+
+    <section class="stats" id="stats">
+      <div class="stat"><div class="k">Queued</div><div class="v" id="s-queued">0</div></div>
+      <div class="stat"><div class="k">Running</div><div class="v" id="s-running">0</div></div>
+      <div class="stat"><div class="k">Success</div><div class="v" id="s-success">0</div></div>
+      <div class="stat"><div class="k">Failed</div><div class="v" id="s-failed">0</div></div>
+    </section>
+
+    <div class="layout">
+      <!-- LEFT -->
+      <div class="col">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-h">
+            <h2>Tài khoản Dola (Gmail)</h2>
+            <div class="actions">
+              <button class="btn ghost" id="btn-refresh-acc">Refresh</button>
+            </div>
+          </div>
+          <div class="card-b">
+            <div class="hint" style="margin-bottom:12px">
+              <strong>Cách 2 — Assisted login (khuyến nghị)</strong><br/>
+              App mở <em>1 Chrome</em> → <strong>bạn tự login</strong> Gmail/Dola → app lấy session + <strong>check quota ngày</strong>.
+              Có thể xếp hàng nhiều lượt tuần tự (không auto-fill password).
+              Khi gen video, worker luôn check quota và bỏ qua acc hết lượt.
+            </div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label>Số lượt login tuần tự
+                  <input id="assist-count" type="number" min="1" max="50" value="1" />
+                </label>
+                <label>Label prefix
+                  <input id="assist-prefix" placeholder="acc" value="acc" />
+                </label>
+              </div>
+              <div class="actions">
+                <button class="btn primary" id="btn-assisted-login">Assisted Login (bạn tự đăng nhập)</button>
+                <button class="btn ghost" id="btn-check-quota-all">Check quota tất cả</button>
+                <button class="btn ghost" id="btn-assist-cancel">Huỷ queue login</button>
+              </div>
+              <div id="login-status" class="login-status" hidden></div>
+              <details class="advanced" style="margin-top:8px">
+                <summary>Nâng cao: dán cookie / 1-shot browser</summary>
+                <div class="form-grid" style="margin-top:10px">
+                  <div class="form-row">
+                    <label>Label
+                      <input id="acc-label" placeholder="acc-gmail-01" />
+                    </label>
+                    <label>Daily limit (fallback)
+                      <input id="acc-limit" type="number" min="1" value="2" />
+                    </label>
+                  </div>
+                  <label>Email (tuỳ chọn)
+                    <input id="acc-email" type="email" placeholder="you@gmail.com" />
+                  </label>
+                  <label>Cookies / Session
+                    <textarea id="acc-cookies" placeholder="sessionid=...; sid_tt=..."></textarea>
+                  </label>
+                  <div class="actions">
+                    <button class="btn" id="btn-add-acc">Thêm bằng cookie</button>
+                    <button class="btn" id="btn-browser-login">1-shot Browser Login</button>
+                  </div>
+                </div>
+              </details>
+            </div>
+            <div class="list" id="account-list" style="margin-top:14px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="col">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-h">
+            <h2>Tạo video Seedance 2 hàng loạt</h2>
+            <div class="tabs">
+              <button class="tab active" data-tab="batch">Batch prompts</button>
+              <button class="tab" data-tab="single">Single</button>
+            </div>
+          </div>
+          <div class="card-b">
+            <div class="form-grid">
+              <div id="panel-batch">
+                <label>Danh sách prompt (mỗi dòng 1 video)
+                  <textarea id="batch-prompts" placeholder="Cinematic drone shot over misty mountains at sunrise&#10;A cat astronaut floating in a neon space station"></textarea>
+                </label>
+              </div>
+              <div id="panel-single" hidden>
+                <label>Prompt
+                  <textarea id="single-prompt" placeholder="Mô tả video Seedance 2.0..."></textarea>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>Mode
+                  <select id="job-mode">
+                    <option value="text2video">Text → Video</option>
+                    <option value="image2video">Image → Video</option>
+                  </select>
+                </label>
+                <label>Gán account (auto = round-robin)
+                  <select id="job-account"><option value="">Auto</option></select>
+                </label>
+              </div>
+              <div id="ref-image-panel" class="ref-image-panel" hidden>
+                <div class="form-row">
+                  <label>Ảnh tham chiếu (upload)
+                    <input id="ref-image-file" type="file" accept="image/*" />
+                  </label>
+                  <label>Hoặc Image URL
+                    <input id="ref-image-url" placeholder="https://..." />
+                  </label>
+                </div>
+                <div id="ref-image-preview-wrap" class="ref-preview" hidden>
+                  <img id="ref-image-preview" alt="preview" />
+                  <div class="item-sub" id="ref-image-meta"></div>
+                  <button type="button" class="btn ghost" id="btn-clear-ref">Xoá ảnh</button>
+                </div>
+                <input type="hidden" id="ref-image-path" value="" />
+              </div>
+              <div class="form-row">
+                <label>Ratio
+                  <select id="job-ratio">
+                    <option>16:9</option>
+                    <option>9:16</option>
+                    <option>1:1</option>
+                    <option>4:3</option>
+                    <option>3:4</option>
+                  </select>
+                </label>
+                <label>Duration (giây)
+                  <select id="job-duration">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>Resolution
+                  <select id="job-res">
+                    <option value="720p">720p</option>
+                    <option value="1080p">1080p</option>
+                  </select>
+                </label>
+                <label>Model
+                  <select id="job-model">
+                    <option value="seedance_2.0">Seedance 2.0</option>
+                  </select>
+                </label>
+              </div>
+              <div class="actions">
+                <button class="btn primary" id="btn-submit-jobs">Đưa vào hàng đợi</button>
+                <button class="btn" id="btn-clear-done">Xoá job xong/fail</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <h2>Jobs</h2>
+            <div class="actions">
+              <button class="btn ghost" id="btn-refresh-jobs">Refresh</button>
+            </div>
+          </div>
+          <div class="card-b">
+            <div class="list" id="job-list"></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-h">
+            <h2>Gallery — video đã tải về</h2>
+            <div class="actions">
+              <button class="btn ghost" id="btn-refresh-gallery">Refresh</button>
+            </div>
+          </div>
+          <div class="card-b">
+            <div class="gallery" id="gallery"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      Chỉ dùng session của tài khoản bạn sở hữu. Tuân thủ ToS của Dola / ByteDance.
+      API internal có thể thay đổi — nếu payload lỗi, dùng tab Network capture và endpoint <code>/api/raw</code>.
+    </footer>
+  </div>
+
+  <div class="toast-wrap" id="toasts"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

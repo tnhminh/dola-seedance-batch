@@ -1,0 +1,23 @@
+services:
+  dola-seedance:
+    build: .
+    container_name: dola-seedance-live
+    ports:
+      - "8787:8787"
+    env_file:
+      - .env
+    environment:
+      DOLA_ENV: production
+      DOLA_DEMO_MODE: "false"
+      DOLA_HOST: 0.0.0.0
+      DOLA_PORT: "8787"
+    volumes:
+      - ./data:/app/data
+      - ./downloads:/app/downloads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8787/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
